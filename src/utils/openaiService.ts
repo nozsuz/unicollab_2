@@ -1,8 +1,9 @@
 import OpenAI from 'openai';
-import * as dotenv from 'dotenv';
 
-// 環境変数を読み込む（.env ファイルから設定を取得）
-dotenv.config();
+// Vite の環境変数を利用して API キーを取得
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,  // Vite の環境変数を使用
+});
 
 export interface ProposalData {
   title: string;
@@ -14,15 +15,9 @@ export interface ProposalData {
   expectedOutcome: string;
 }
 
-// OpenAI API の設定
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,  // 環境変数にAPIキーを設定
-});
-
 // テキストから研究提案データを生成
 export async function generateProposalFromText(text: string): Promise<ProposalData> {
   try {
-    // プロンプトの作成
     const prompt = `
     以下のテキストから研究提案の情報を抽出してください：
     テキスト: "${text}"
@@ -39,38 +34,27 @@ export async function generateProposalFromText(text: string): Promise<ProposalDa
     各項目の情報を、JSON形式で返してください。
     `;
 
-    // OpenAI APIの呼び出し
     const completion = await openai.chat.completions.create({
-      model: 'o3-mini',  // 必要に応じてモデルを変更
+      model: 'gpt-3.5-turbo',  // 必要に応じてモデルを選択
       messages: [
-        {
-          role: 'system',
-          content: '研究提案の情報を抽出して、以下の項目に従って返答してください。',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
+        { role: 'system', content: '研究提案の情報を抽出してください。' },
+        { role: 'user', content: prompt },
       ],
       max_tokens: 1024,
     });
 
-    // レスポンスの解析
     const responseText = completion.choices[0]?.message?.content || '{}';
-    const proposalData: ProposalData = JSON.parse(responseText.trim());
-
-    return proposalData;
-
+    return JSON.parse(responseText.trim());
   } catch (error) {
     console.error('OpenAI API の呼び出し中にエラーが発生しました:', error);
     return {
       title: 'エラーが発生しました',
       field: 'エラー',
-      summary: 'テキストからの情報抽出に失敗しました。',
-      background: 'テキストからの情報抽出に失敗しました。',
-      objective: 'テキストからの情報抽出に失敗しました。',
-      approach: 'テキストからの情報抽出に失敗しました。',
-      expectedOutcome: 'テキストからの情報抽出に失敗しました。',
+      summary: '情報抽出に失敗しました。',
+      background: '情報抽出に失敗しました。',
+      objective: '情報抽出に失敗しました。',
+      approach: '情報抽出に失敗しました。',
+      expectedOutcome: '情報抽出に失敗しました。',
     };
   }
 }
