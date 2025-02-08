@@ -37,9 +37,13 @@ export default async function handler(req, res) {
       max_completion_tokens: 1024,
     });
 
-    const responseText = completion.choices[0]?.message?.content?.trim() || '{}';
+    let responseText = completion.choices[0]?.message?.content?.trim() || '{}';
 
-    // JSONパースの安全な実行
+    // バッククォートで囲まれたコードブロック（```json ... ```）を削除
+    if (responseText.startsWith('```json')) {
+      responseText = responseText.replace(/```json|```/g, '').trim();
+    }
+
     let proposalData;
     try {
       proposalData = JSON.parse(responseText);
