@@ -1,10 +1,3 @@
-import OpenAI from 'openai';
-
-// Vite の環境変数を利用して API キーを取得
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,  // Vite の環境変数を使用
-});
-
 export interface ProposalData {
   title: string;
   field: string;
@@ -15,38 +8,24 @@ export interface ProposalData {
   expectedOutcome: string;
 }
 
-// テキストから研究提案データを生成
 export async function generateProposalFromText(text: string): Promise<ProposalData> {
   try {
-    const prompt = `
-    以下のテキストから研究提案の情報を抽出してください：
-    テキスト: "${text}"
-
-    必要な項目：
-    - タイトル（title）
-    - 研究分野（field）
-    - 概要（summary）
-    - 背景（background）
-    - 目的（objective）
-    - アプローチ（approach）
-    - 期待される成果（expectedOutcome）
-
-    各項目の情報を、JSON形式で返してください。
-    `;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',  // 必要に応じてモデルを選択
-      messages: [
-        { role: 'system', content: '研究提案の情報を抽出してください。' },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: 1024,
+    const response = await fetch('/api/generateProposal', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
     });
 
-    const responseText = completion.choices[0]?.message?.content || '{}';
-    return JSON.parse(responseText.trim());
+    if (!response.ok) {
+      throw new Error('APIエラー');
+    }
+
+    const proposalData = await response.json();
+    return proposalData;
   } catch (error) {
-    console.error('OpenAI API の呼び出し中にエラーが発生しました:', error);
+    console.error('API呼び出し中にエラーが発生しました:', error);
     return {
       title: 'エラーが発生しました',
       field: 'エラー',
