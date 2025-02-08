@@ -13,24 +13,39 @@ export default async function handler(req, res) {
   try {
     const { text } = req.body;
 
+    const prompt = `
+    以下のテキストから研究提案の情報を抽出し、必ず次の形式でJSON形式として返答してください：
+    {
+      "title": "研究のタイトル",
+      "field": "研究分野",
+      "summary": "概要",
+      "background": "背景",
+      "objective": "目的",
+      "approach": "アプローチ",
+      "expectedOutcome": "期待される成果"
+    }
+
+    テキスト: "${text}"
+    `;
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: '研究提案の情報を抽出し、JSON形式で返答してください。' },
-        { role: 'user', content: text },
+        { role: 'system', content: '研究提案の情報を抽出し、構造化されたJSON形式で返答してください。' },
+        { role: 'user', content: prompt },
       ],
       max_completion_tokens: 1024,
     });
 
     const responseText = completion.choices[0]?.message?.content?.trim() || '{}';
 
-    // JSONパース前にレスポンスが有効なJSON形式かをチェック
+    // JSONパースの安全な実行
     let proposalData;
     try {
-      proposalData = JSON.parse(responseText);  // JSON形式の場合はパース
+      proposalData = JSON.parse(responseText);
     } catch (e) {
       console.warn('レスポンスがJSON形式ではありません:', responseText);
-      proposalData = { message: responseText };  // JSON以外の場合はそのまま返す
+      proposalData = { message: responseText };
     }
 
     res.status(200).json(proposalData);
