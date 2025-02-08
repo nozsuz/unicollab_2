@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const { text } = req.body;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'o3-mini',
       messages: [
         { role: 'system', content: '研究提案の情報を抽出してください。' },
         { role: 'user', content: text },
