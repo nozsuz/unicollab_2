@@ -1,10 +1,11 @@
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
+// 環境変数を読み込む
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -27,4 +28,4 @@ module.exports = async (req, res) => {
     console.error('OpenAI APIエラー:', error);
     res.status(500).json({ error: 'OpenAI APIの呼び出しに失敗しました' });
   }
-};
+}
