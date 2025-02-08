@@ -1,4 +1,8 @@
 import OpenAI from 'openai';
+import * as dotenv from 'dotenv';
+
+// 環境変数を読み込む（.env ファイルから設定を取得）
+dotenv.config();
 
 export interface ProposalData {
   title: string;
