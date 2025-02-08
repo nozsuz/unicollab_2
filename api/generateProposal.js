@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         { role: 'system', content: '研究提案の情報を抽出してください。' },
         { role: 'user', content: text },
       ],
-      max_tokens: 1024,
+      max_completion_tokens: 1024,
     });
 
     const responseText = completion.choices[0]?.message?.content || '{}';
