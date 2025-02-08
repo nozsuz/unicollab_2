@@ -1,8 +1,7 @@
-import * as pdfjs from 'pdfjs-dist/build/pdf';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.entry';
+import * as pdfjs from 'pdfjs-dist';
 
-// ローカルインストールされたpdf.workerを使用する
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+// CDNからのワーカーを使用
+(pdfjs as any).GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
