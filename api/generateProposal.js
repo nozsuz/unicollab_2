@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     const completion = await openai.chat.completions.create({
       model: 'chatgpt-4o-latest',
       messages: [
-        { role: 'system', content: '研究提案の情報を抽出し、構造化されたJSON形式で返答してください。' },
+        { role: 'system', content: '研究提案の情報を抽出し、日本語の構造化されたJSON形式で返答してください。' },
         { role: 'user', content: prompt },
       ],
       max_completion_tokens: 1024,
