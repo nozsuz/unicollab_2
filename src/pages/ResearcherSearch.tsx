@@ -31,12 +31,13 @@ const ResearcherSearch: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedResearcher, setSelectedResearcher] = useState<ResearcherProfile | null>(null);
 
-  // 初回データ取得（Supabaseからフェッチ）
+  // 初回ロード時に Supabase からデータを取得し、コンソールログで確認する
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const data = await getResearchers();
+        console.log('Fetched data:', data); // 取得したデータをコンソールに出力
         setResearchers(data);
       } catch (error) {
         console.error('Error fetching researchers:', error);
@@ -57,6 +58,7 @@ const ResearcherSearch: React.FC = () => {
         minHIndex: filters.minHIndex,
         hasPatents: filters.hasPatents
       });
+      console.log('Search results:', results);
       setResearchers(results);
     } catch (error) {
       console.error('Error searching researchers:', error);
