@@ -108,11 +108,11 @@ const AiChatPopup: React.FC = () => {
       ? researchers.filter(r => r.field === selectedField)
       : researchers;
 
-    // 候補情報のテキスト整形（各候補の Supabase の id も含む）
+    // 候補情報のテキスト整形（各候補の Supabase の id と keywords も含む）
     let candidateInfo = '';
     if (filteredResearchers.length > 0) {
       candidateInfo = filteredResearchers
-        .map(r => `ID: ${r.id} | ${r.name} (${r.institution} ${r.department}) - ${r.specialization}`)
+        .map(r => `ID: ${r.id} | ${r.name} (${r.institution} ${r.department}) - ${r.specialization} / キーワード: ${r.keywords}`)
         .join('\n');
     } else {
       candidateInfo = '該当する研究者は見つかりませんでした。';
@@ -126,7 +126,7 @@ ${candidateInfo}
 
 ユーザーのクエリ：「${input}」
 ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
-上記候補情報に基づき、各候補のマッチ度（0～100の評価）とともに、研究者名、所属、研究概要のみを JSON 配列形式で出力してください。
+※各候補にはSupabaseのkeywords情報も含まれています。ユーザーのクエリに曖昧な単語や誤字が含まれている場合でも、これらの情報を参考にして、適切な候補のマッチ度（0～100の評価）とともに、研究者名、所属、研究概要のみを JSON 配列形式で出力してください。
 例:
 [
   { "id": "324afc49", "matchScore": 85, "researcher": "山田 太郎", "researchOverview": "この研究は〜という内容です。" },
