@@ -146,7 +146,7 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
             { role: "system", content: "あなたは有能な研究情報アシスタントです。" },
             { role: "user", content: prompt }
           ],
-          temperature: 0.7
+          temperature: 0.3
         })
       });
       const data = await response.json();
