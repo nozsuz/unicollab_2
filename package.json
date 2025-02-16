@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@supabase/supabase-js": "^2.48.1",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/uuid": "^9.0.7",
     "cors": "^2.8.5",
