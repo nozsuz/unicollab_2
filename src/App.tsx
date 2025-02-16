@@ -19,6 +19,7 @@ import AcademicProjects from './pages/AcademicProjects';
 import BusinessProjects from './pages/BusinessProjects';
 import FundingNews from './pages/FundingNews';
 import ResearcherSearch from './pages/ResearcherSearch';
+import AiChatPopup from './components/AiChatPopup';
 
 function App() {
   return (
@@ -47,6 +48,8 @@ function App() {
             <Route path="/researcher-search" element={<ResearcherSearch />} />
           </Routes>
         </main>
+        {/* AIチャット用ポップアップ */}
+        <AiChatPopup />
       </div>
     </Router>
   );
