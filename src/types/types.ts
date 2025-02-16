@@ -1,4 +1,3 @@
-// src/types.ts
 export interface ResearcherProfile {
   id: string;
   name: string;
@@ -32,4 +31,12 @@ export interface ResearcherProfile {
   };
   created_at: string;
   updated_at: string;
+}
+
+export interface SearchFilters {
+  field?: string;
+  specialization?: string[];
+  institution?: string;
+  minHIndex?: number;
+  hasPatents?: boolean;
 }
