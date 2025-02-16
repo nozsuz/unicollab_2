@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { searchResearchers, getResearchers, ResearcherProfile } from '../utils/researcherStorage'; // これらを非同期関数に変更
+import { ResearcherProfile } from '../types';
+import { getResearchers, searchResearchers } from '../utils/researcherStorage';
 
 interface SearchFilters {
   field: string;
@@ -13,7 +14,7 @@ interface SearchFilters {
   hasPatents: boolean;
 }
 
-const ResearcherSearch = () => {
+const ResearcherSearch: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({
     field: '',
@@ -30,8 +31,8 @@ const ResearcherSearch = () => {
   const [loading, setLoading] = useState(false);
   const [selectedResearcher, setSelectedResearcher] = useState<ResearcherProfile | null>(null);
 
+  // 初回データ取得（Supabaseからフェッチ）
   useEffect(() => {
-    // 初回データ取得（Supabaseからフェッチする場合）
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -67,10 +68,10 @@ const ResearcherSearch = () => {
 
   const getFieldLabel = (field: string) => {
     const fieldMap: { [key: string]: string } = {
-      'medical': '医学・薬学',
-      'engineering': '工学',
-      'chemistry': '化学',
-      'it': '情報工学'
+      medical: '医学・薬学',
+      engineering: '工学',
+      chemistry: '化学',
+      it: '情報工学'
     };
     return fieldMap[field] || field;
   };
@@ -86,8 +87,86 @@ const ResearcherSearch = () => {
 
       {/* 検索フィルター */}
       <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-        {/* 検索フィルターのUIはそのまま */}
-        {/* ... */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* キーワード検索 */}
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              キーワード検索
+            </label>
+            <input
+              type="text"
+              id="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="研究キーワードを入力"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* 研究分野 */}
+          <div>
+            <label htmlFor="field" className="block text-sm font-medium text-gray-700 mb-2">
+              研究分野
+            </label>
+            <select
+              id="field"
+              value={filters.field}
+              onChange={(e) => setFilters({ ...filters, field: e.target.value })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">すべての分野</option>
+              <option value="medical">医学・薬学</option>
+              <option value="engineering">工学</option>
+              <option value="chemistry">化学</option>
+              <option value="it">情報工学</option>
+            </select>
+          </div>
+
+          {/* 所属機関 */}
+          <div>
+            <label htmlFor="institution" className="block text-sm font-medium text-gray-700 mb-2">
+              所属機関
+            </label>
+            <input
+              type="text"
+              id="institution"
+              value={filters.institution}
+              onChange={(e) => setFilters({ ...filters, institution: e.target.value })}
+              placeholder="大学・研究機関名"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* h-index */}
+          <div>
+            <label htmlFor="h-index" className="block text-sm font-medium text-gray-700 mb-2">
+              最小h-index
+            </label>
+            <input
+              type="number"
+              id="h-index"
+              value={filters.minHIndex}
+              onChange={(e) => setFilters({ ...filters, minHIndex: parseInt(e.target.value) || 0 })}
+              min="0"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* 特許の有無 */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="has-patents"
+              checked={filters.hasPatents}
+              onChange={(e) => setFilters({ ...filters, hasPatents: e.target.checked })}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="has-patents" className="ml-2 block text-sm text-gray-700">
+              特許を保有する研究者のみ
+            </label>
+          </div>
+        </div>
+
         <div className="mt-6 flex justify-center">
           <button
             onClick={handleSearch}
@@ -139,11 +218,56 @@ const ResearcherSearch = () => {
                   <p className="text-gray-600 mb-4">{researcher.research_summary}</p>
                   
                   {/* 研究実績 */}
-                  {/* 以下、研究実績の表示部分はそのまま */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">h-index</p>
+                      <p className="text-lg font-semibold text-gray-900">{researcher.citation_metrics.h_index}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">総被引用数</p>
+                      <p className="text-lg font-semibold text-gray-900">{researcher.citation_metrics.total_citations}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-500">特許数</p>
+                      <p className="text-lg font-semibold text-gray-900">{researcher.patents.count}</p>
+                    </div>
+                  </div>
+
+                  {/* 最近の論文 */}
+                  {researcher.publications.recent.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">最近の論文</h3>
+                      <ul className="space-y-2">
+                        {researcher.publications.recent.map((pub, index) => (
+                          <li key={index} className="text-sm">
+                            <p className="text-gray-900">{pub.title}</p>
+                            <p className="text-gray-500">
+                              {pub.journal} ({pub.year}) - 被引用数: {pub.citations}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 最近の特許 */}
+                  {researcher.patents.recent.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">最近の特許</h3>
+                      <ul className="space-y-2">
+                        {researcher.patents.recent.map((patent, index) => (
+                          <li key={index} className="text-sm">
+                            <p className="text-gray-900">{patent.title}</p>
+                            <p className="text-gray-500">
+                              {patent.patent_number} ({patent.year})
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* アクションボタン */}
               <div className="mt-6 flex justify-end space-x-4">
                 <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                   詳細プロフィール
@@ -155,10 +279,24 @@ const ResearcherSearch = () => {
             </div>
           </div>
         ))}
-
         {researchers.length === 0 && !loading && (
           <div className="text-center py-12">
-            {/* 0件の表示 */}
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">該当する研究者が見つかりません</h3>
+            <p className="mt-1 text-sm text-gray-500">検索条件を変更してお試しください。</p>
           </div>
         )}
       </div>

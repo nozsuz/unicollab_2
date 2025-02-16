@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { ResearcherProfile, SearchFilters } from '../types';
 
-// Supabase の初期化
+// Supabase の初期化（あなたのプロジェクトの URL と anon-key に置き換えてください）
 const supabaseUrl = 'https://your-project-url.supabase.co';
 const supabaseKey = 'your-anon-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 研究者データを Supabase から取得する
+// 研究者データを Supabase から取得する関数
 export async function getResearchers(): Promise<ResearcherProfile[]> {
   const { data, error } = await supabase
     .from('researchers')
@@ -18,7 +18,7 @@ export async function getResearchers(): Promise<ResearcherProfile[]> {
   return data as ResearcherProfile[];
 }
 
-// 取得した研究者データに対して、クエリおよびフィルターを適用して検索する
+// 取得した研究者データに対して、クエリおよびフィルターを適用して検索する関数
 export async function searchResearchers(
   query: string,
   filters: SearchFilters
@@ -26,7 +26,7 @@ export async function searchResearchers(
   const researchers = await getResearchers();
 
   return researchers.filter((researcher: ResearcherProfile) => {
-    // キーワード検索：名前、研究概要、専門分野、最近の論文タイトルにクエリが含まれているかチェック
+    // キーワード検索：名前、研究概要、専門分野、最近の論文タイトルにクエリが含まれているか
     const matchesQuery =
       query === '' ||
       [
