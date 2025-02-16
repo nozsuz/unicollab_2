@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // 研究者データを Supabase から取得する関数
 export async function getResearchers(): Promise<ResearcherProfile[]> {
   const { data, error } = await supabase
-    .from('researchers')
+    .from('ishinomaki_1')
     .select('*');
   if (error) {
     console.error('Error fetching researchers:', error);
