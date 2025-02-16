@@ -1,71 +1,27 @@
-import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
+import { ResearcherProfile, SearchFilters } from './types';  // 上記のインターフェイス定義
 
-export interface ResearcherProfile {
-  id: string;
-  name: string;
-  title: string;
-  institution: string;
-  department: string;
-  field: string;
-  specialization: string;
-  research_summary: string;
-  citation_metrics: {
-    h_index: number;
-    total_citations: number;
-    i10_index: number;
-  };
-  publications: {
-    count: number;
-    recent: Array<{
-      title: string;
-      journal: string;
-      year: number;
-      citations: number;
-    }>;
-  };
-  patents: {
-    count: number;
-    recent: Array<{
-      title: string;
-      patent_number: string;
-      year: number;
-    }>;
-  };
-  created_at: string;
-  updated_at: string;
-}
+// Supabase クライアントの初期化
+const supabaseUrl = 'https://nfvwqjkweewfdtowduqr.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdndxamt3ZWV3ZmR0b3dkdXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc4OTcyNzAsImV4cCI6MjA1MzQ3MzI3MH0.7FX4jSTUY4jJGEY6e8T-20ONBLInARvG-oYyCqxBL1g';  // 読み取り用の anon-key を使用
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-interface SearchFilters {
-  field?: string;
-  specialization?: string[];
-  institution?: string;
-  minHIndex?: number;
-  hasPatents?: boolean;
-}
+// 研究者プロフィール一覧の取得（Supabase から取得）
+export async function getResearchers(): Promise<ResearcherProfile[]> {
+  const { data, error } = await supabase
+    .from('researchers')
+    .select('*');
 
-// サンプルデータ
-const sampleResearchers: ResearcherProfile[] = [
-  // ... (既存のサンプルデータ)
-];
-
-// 研究者プロフィール一覧の取得
-export function getResearchers(): ResearcherProfile[] {
-  const stored = localStorage.getItem('researcher_profiles');
-  if (!stored) {
-    localStorage.setItem('researcher_profiles', JSON.stringify(sampleResearchers));
-    return sampleResearchers;
-  }
-  try {
-    return JSON.parse(stored);
-  } catch (error) {
-    console.error('Error parsing stored researchers:', error);
+  if (error) {
+    console.error('Error fetching researchers:', error);
     return [];
   }
+  return data as ResearcherProfile[];
 }
 
-// 研究者の検索
-export function searchResearchers(query: string, filters: SearchFilters): ResearcherProfile[] {
-  const researchers = getResearchers();
+// 研究者の検索（Supabase 側でフィルターする場合も可能ですが、ここではクライアント側でフィルタリング）
+export async function searchResearchers(query: string, filters: SearchFilters): Promise<ResearcherProfile[]> {
+  const researchers = await getResearchers();
   
   return researchers.filter(researcher => {
     // キーワード検索
