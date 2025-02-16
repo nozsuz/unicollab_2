@@ -6,7 +6,7 @@ const supabaseUrl = 'https://your-project-url.supabase.co';
 const supabaseKey = 'your-anon-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 研究者データを Supabase から取得する関数
+// 研究者データを Supabase から取得する
 export async function getResearchers(): Promise<ResearcherProfile[]> {
   const { data, error } = await supabase
     .from('researchers')
@@ -18,7 +18,7 @@ export async function getResearchers(): Promise<ResearcherProfile[]> {
   return data as ResearcherProfile[];
 }
 
-// 取得した研究者データに対して、クエリおよびフィルターを適用して検索する関数
+// 取得した研究者データに対して、クエリおよびフィルターを適用して検索する
 export async function searchResearchers(
   query: string,
   filters: SearchFilters
