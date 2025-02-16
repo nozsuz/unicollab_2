@@ -4,8 +4,9 @@ export interface ResearcherProfile {
   title: string;
   institution: string;
   department: string;
-  field: string;
-  specialization: string;
+  field: string;           // 専門分野としてのフィールド
+  specialization: string;  // 研究分野としての specialization
+  keywords: string;        // キーワード
   research_summary: string;
   citation_metrics: {
     h_index: number;
@@ -34,9 +35,13 @@ export interface ResearcherProfile {
 }
 
 export interface SearchFilters {
-  field?: string;
-  specialization?: string[];
-  institution?: string;
-  minHIndex?: number;
-  hasPatents?: boolean;
+  fields: string[];            // 専門分野（researcher.field）のチェックボックス選択
+  specializationQuery: string; // 研究分野（researcher.specialization）の検索用文字列
+  keywords: string;            // キーワード検索（researcher.keywords）対象
+  institution: string;
+  publicationYearStart: number;
+  publicationYearEnd: number;
+  minCitations: number;
+  minHIndex: number;
+  hasPatents: boolean;
 }
