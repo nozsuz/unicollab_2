@@ -3,9 +3,9 @@ import { ResearcherProfile } from '../types';
 import { getResearchers, searchResearchers } from '../utils/researcherStorage';
 
 interface SearchFilters {
-  field: string;
-  specialization: string[];
-  keywords: string[];
+  fields: string[];                // 専門分野 (researcher.field) のチェックボックス選択
+  specializationQuery: string;     // 研究分野 (researcher.specialization) の検索用文字列
+  keywords: string;                // キーワード検索対象（researcher.keywords）の検索文字列
   institution: string;
   publicationYearStart: number;
   publicationYearEnd: number;
@@ -14,30 +14,56 @@ interface SearchFilters {
   hasPatents: boolean;
 }
 
+const allFields = [
+  "スポーツ健康科学",
+  "医科学",
+  "医学",
+  "学校教育学",
+  "学術",
+  "環境科学",
+  "教育学",
+  "教育情報学",
+  "経営学",
+  "経営経済学",
+  "経済学",
+  "芸術学",
+  "工学",
+  "国際関係論",
+  "国際文化",
+  "商学",
+  "情報科学",
+  "人間科学",
+  "体育学",
+  "農学",
+  "文学",
+  "法学",
+  "薬学",
+  "理学"
+];
+
 const ResearcherSearch: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({
-    field: '',
-    specialization: [],
-    keywords: [],
+    fields: [],
+    specializationQuery: '',
+    keywords: '',
     institution: '',
     publicationYearStart: 2000,
     publicationYearEnd: new Date().getFullYear(),
     minCitations: 0,
     minHIndex: 0,
-    hasPatents: false
+    hasPatents: false,
   });
   const [researchers, setResearchers] = useState<ResearcherProfile[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedResearcher, setSelectedResearcher] = useState<ResearcherProfile | null>(null);
+  const [showFieldFilter, setShowFieldFilter] = useState(false);
 
-  // 初回ロード時に Supabase からデータを取得し、コンソールログで確認する
+  // 初回ロード時に Supabase から全データを取得
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const data = await getResearchers();
-        console.log('Fetched data:', data); // 取得したデータをコンソールに出力
+        console.log('Fetched data:', data);
         setResearchers(data);
       } catch (error) {
         console.error('Error fetching researchers:', error);
@@ -48,113 +74,120 @@ const ResearcherSearch: React.FC = () => {
     fetchData();
   }, []);
 
+  // 検索処理。検索クエリは researcher.keywords のみを対象とし、
+  // 研究分野検索は researcher.specialization に対して、専門分野は filters.fields でフィルタ
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const results = await searchResearchers(searchQuery, {
-        field: filters.field,
-        specialization: filters.specialization,
-        institution: filters.institution,
-        minHIndex: filters.minHIndex,
-        hasPatents: filters.hasPatents
-      });
+      const results = await searchResearchers(filters.keywords, filters);
       console.log('Search results:', results);
       setResearchers(results);
     } catch (error) {
       console.error('Error searching researchers:', error);
-      alert('研究者の検索中にエラーが発生しました');
+      alert('検索中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
   };
 
-  const getFieldLabel = (field: string) => {
-    const fieldMap: { [key: string]: string } = {
-      medical: '医学・薬学',
-      engineering: '工学',
-      chemistry: '化学',
-      it: '情報工学'
-    };
-    return fieldMap[field] || field;
+  const toggleField = (field: string) => {
+    setFilters(prev => {
+      const newFields = prev.fields.includes(field)
+        ? prev.fields.filter(f => f !== field)
+        : [...prev.fields, field];
+      return { ...prev, fields: newFields };
+    });
   };
+
+  // getFieldLabel: 専門分野のラベルをそのまま返す
+  const getFieldLabel = (field: string) => field;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">研究者検索</h1>
         <p className="mt-2 text-gray-600">
-          研究分野やキーワードから、共同研究のパートナーを見つけることができます。
+          キーワード、研究分野、専門分野で検索できます。
         </p>
       </div>
 
-      {/* 検索フィルター */}
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* キーワード検索 */}
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              キーワード検索
-            </label>
+      {/* 検索フィルター（コンパクトにまとめる） */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="flex flex-col md:flex-row md:items-end md:space-x-4">
+          {/* キーワード検索（researcher.keywords） */}
+          <div className="flex-1">
+            <label htmlFor="keywords" className="block text-sm font-medium text-gray-700">キーワード検索</label>
             <input
               type="text"
-              id="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="研究キーワードを入力"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              id="keywords"
+              value={filters.keywords}
+              onChange={(e) => setFilters({ ...filters, keywords: e.target.value })}
+              placeholder="キーワードを入力"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
-
-          {/* 研究分野 */}
-          <div>
-            <label htmlFor="field" className="block text-sm font-medium text-gray-700 mb-2">
-              研究分野
-            </label>
-            <select
-              id="field"
-              value={filters.field}
-              onChange={(e) => setFilters({ ...filters, field: e.target.value })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >
-              <option value="">すべての分野</option>
-              <option value="medical">医学・薬学</option>
-              <option value="engineering">工学</option>
-              <option value="chemistry">化学</option>
-              <option value="it">情報工学</option>
-            </select>
+          {/* 研究分野検索（researcher.specialization） */}
+          <div className="flex-1">
+            <label htmlFor="specializationQuery" className="block text-sm font-medium text-gray-700">研究分野検索</label>
+            <input
+              type="text"
+              id="specializationQuery"
+              value={filters.specializationQuery}
+              onChange={(e) => setFilters({ ...filters, specializationQuery: e.target.value })}
+              placeholder="研究分野を入力"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
           </div>
-
-          {/* 所属機関 */}
+        </div>
+        {/* 専門分野フィルター（トグル表示） */}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="block text-sm font-medium text-gray-700">専門分野</span>
+          <button
+            onClick={() => setShowFieldFilter(prev => !prev)}
+            className="px-3 py-1 bg-gray-200 rounded text-sm"
+          >
+            {showFieldFilter ? '非表示にする' : '表示する'}
+          </button>
+        </div>
+        {showFieldFilter && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {allFields.map((field) => (
+              <label key={field} className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  className="form-checkbox text-indigo-600"
+                  checked={filters.fields.includes(field)}
+                  onChange={() => toggleField(field)}
+                />
+                <span className="ml-2 text-sm">{field}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {/* その他のフィルター：所属機関、最小h-index、特許有無 */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="institution" className="block text-sm font-medium text-gray-700 mb-2">
-              所属機関
-            </label>
+            <label htmlFor="institution" className="block text-sm font-medium text-gray-700">所属機関</label>
             <input
               type="text"
               id="institution"
               value={filters.institution}
               onChange={(e) => setFilters({ ...filters, institution: e.target.value })}
               placeholder="大学・研究機関名"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
-
-          {/* h-index */}
           <div>
-            <label htmlFor="h-index" className="block text-sm font-medium text-gray-700 mb-2">
-              最小h-index
-            </label>
+            <label htmlFor="h-index" className="block text-sm font-medium text-gray-700">最小h-index</label>
             <input
               type="number"
               id="h-index"
               value={filters.minHIndex}
               onChange={(e) => setFilters({ ...filters, minHIndex: parseInt(e.target.value) || 0 })}
               min="0"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
-
-          {/* 特許の有無 */}
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -163,32 +196,26 @@ const ResearcherSearch: React.FC = () => {
               onChange={(e) => setFilters({ ...filters, hasPatents: e.target.checked })}
               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
             />
-            <label htmlFor="has-patents" className="ml-2 block text-sm text-gray-700">
-              特許を保有する研究者のみ
-            </label>
+            <label htmlFor="has-patents" className="ml-2 text-sm text-gray-700">特許を保有する研究者のみ</label>
           </div>
         </div>
-
-        <div className="mt-6 flex justify-center">
+        <div className="mt-4 flex justify-end">
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {loading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                検索中...
-              </>
-            ) : (
-              '研究者を検索'
-            )}
+            {loading ? "検索中..." : "検索"}
           </button>
         </div>
       </div>
+
+      {/* 検索結果件数 */}
+      {!loading && (
+        <div className="mb-4 text-sm text-gray-700">
+          検索結果: {researchers.length} 件
+        </div>
+      )}
 
       {/* 検索結果 */}
       <div className="space-y-6">
@@ -213,59 +240,21 @@ const ResearcherSearch: React.FC = () => {
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {getFieldLabel(researcher.field)}
                     </span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {researcher.specialization}
-                    </span>
+                    {researcher.specialization &&
+                      researcher.specialization.split(/、|・/).map((spec, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          {spec.trim()}
+                        </span>
+                      ))}
                   </div>
                   <p className="text-gray-600 mb-4">{researcher.research_summary}</p>
-                  
-                  {/* 研究実績 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-500">h-index</p>
-                      <p className="text-lg font-semibold text-gray-900">{researcher.citation_metrics.h_index}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-500">総被引用数</p>
-                      <p className="text-lg font-semibold text-gray-900">{researcher.citation_metrics.total_citations}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-500">特許数</p>
-                      <p className="text-lg font-semibold text-gray-900">{researcher.patents.count}</p>
-                    </div>
-                  </div>
-
-                  {/* 最近の論文 */}
-                  {researcher.publications.recent.length > 0 && (
+                  {researcher.keywords && (
                     <div className="mb-4">
-                      <h3 className="text-sm font-medium text-gray-900 mb-2">最近の論文</h3>
-                      <ul className="space-y-2">
-                        {researcher.publications.recent.map((pub, index) => (
-                          <li key={index} className="text-sm">
-                            <p className="text-gray-900">{pub.title}</p>
-                            <p className="text-gray-500">
-                              {pub.journal} ({pub.year}) - 被引用数: {pub.citations}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* 最近の特許 */}
-                  {researcher.patents.recent.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-2">最近の特許</h3>
-                      <ul className="space-y-2">
-                        {researcher.patents.recent.map((patent, index) => (
-                          <li key={index} className="text-sm">
-                            <p className="text-gray-900">{patent.title}</p>
-                            <p className="text-gray-500">
-                              {patent.patent_number} ({patent.year})
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
+                      <h3 className="text-sm font-medium text-gray-900 mb-1">キーワード</h3>
+                      <p className="text-gray-900">{researcher.keywords}</p>
                     </div>
                   )}
                 </div>
