@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
-#import SideMenu from './components/SideMenu';
+// SideMenu を常に非表示にするためインポートはコメントアウト
+// import SideMenu from './components/SideMenu';
 import Home from './pages/Home';
 import Features from './pages/Features';
 import Academic from './pages/Academic';
@@ -26,7 +27,8 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <SideMenu />
+        {/* SideMenu は非表示 */}
+        {/* <SideMenu /> */}
         <main className="pb-16 md:pb-0">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -48,7 +50,7 @@ function App() {
             <Route path="/researcher-search" element={<ResearcherSearch />} />
           </Routes>
         </main>
-        {/* AIチャット用ポップアップ */}
+        {/* AIチャット用ポップアップは常に表示 */}
         <AiChatPopup />
       </div>
     </Router>
