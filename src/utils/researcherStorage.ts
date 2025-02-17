@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { ResearcherProfile, SearchFilters } from '../types';
 
-// Supabase の初期化（実際の URL と anon-key に置き換えてください）
 const supabaseUrl = 'https://nfvwqjkweewfdtowduqr.supabase.co';
 const supabaseKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdndxamt3ZWV3ZmR0b3dkdXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc4OTcyNzAsImV4cCI6MjA1MzQ3MzI3MH0.7FX4jSTUY4jJGEY6e8T-20ONBLInARvG-oYyCqxBL1g';
@@ -35,7 +34,6 @@ export async function searchResearchers(
     const nameLower = (researcher.name || '').toLowerCase();
     const keywordsLower = (researcher.keywords || '').toLowerCase();
     const idLower = String(researcher.id).toLowerCase();
-    // 各トークンが「名前」または「キーワード」または「ID」に含まれているかチェック
     const matchesQuery =
       tokens.length === 0 ||
       tokens.every(token => nameLower.includes(token) || keywordsLower.includes(token) || idLower.includes(token));

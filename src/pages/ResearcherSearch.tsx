@@ -3,10 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ResearcherProfile } from '../types';
 import { getResearchers, searchResearchers, getFields, getInstitutions } from '../utils/researcherStorage';
 
+// specializationQuery プロパティを追加
 interface SearchFilters {
   fields: string[];
   keywords: string;
   institution: string;
+  specializationQuery: string;
   publicationYearStart: number;
   publicationYearEnd: number;
   minCitations: number;
@@ -22,6 +24,7 @@ const ResearcherSearch: React.FC = () => {
     fields: [],
     keywords: '',
     institution: '',
+    specializationQuery: '', // 初期値を空文字に
     publicationYearStart: 2000,
     publicationYearEnd: new Date().getFullYear(),
     minCitations: 0,
@@ -59,7 +62,7 @@ const ResearcherSearch: React.FC = () => {
     fetchInstitutions();
   }, []);
 
-  // URLクエリパラメータに応じて検索結果を更新
+  // URL クエリパラメータに応じて検索結果を更新
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -77,11 +80,10 @@ const ResearcherSearch: React.FC = () => {
           console.log("Filtered researchers (by id):", filteredData);
           setResearchers(filteredData);
         } else if (keywordsParam || institutionParam) {
-          // キーワードや所属機関がある場合は、検索を実行
           const searchFilters: SearchFilters = {
             ...filters,
             keywords: keywordsParam,
-            institution: institutionParam
+            institution: institutionParam,
           };
           const results = await searchResearchers(keywordsParam, searchFilters);
           setResearchers(results);
@@ -97,7 +99,7 @@ const ResearcherSearch: React.FC = () => {
     fetchData();
   }, [location.search]);
 
-  // 検索ボタン・エンターキー押下時の処理：フィルター情報をURLに反映
+  // 検索ボタン・エンターキー押下時の処理：フィルター内容をURLクエリに反映
   const executeSearch = () => {
     const queryParams = new URLSearchParams();
     if (filters.keywords.trim()) {
