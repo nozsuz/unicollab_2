@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, KeyboardEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ResearcherProfile } from '../types';
-import { getResearchers, searchResearchers } from '../utils/researcherStorage';
+import { getResearchers, searchResearchers, getFields, getInstitutions } from '../utils/researcherStorage';
 
 interface SearchFilters {
   fields: string[];
-  specializationQuery: string;
   keywords: string;
   institution: string;
   publicationYearStart: number;
@@ -15,37 +14,12 @@ interface SearchFilters {
   hasPatents: boolean;
 }
 
-const allFields = [
-  "スポーツ健康科学",
-  "医科学",
-  "医学",
-  "学校教育学",
-  "学術",
-  "環境科学",
-  "教育学",
-  "教育情報学",
-  "経営学",
-  "経営経済学",
-  "経済学",
-  "芸術学",
-  "工学",
-  "国際関係論",
-  "国際文化",
-  "商学",
-  "情報科学",
-  "人間科学",
-  "体育学",
-  "農学",
-  "文学",
-  "法学",
-  "薬学",
-  "理学"
-];
-
 const ResearcherSearch: React.FC = () => {
+  const [fieldOptions, setFieldOptions] = useState<string[]>([]);
+  const [institutionOptions, setInstitutionOptions] = useState<string[]>([]);
+  const [showFields, setShowFields] = useState<boolean>(true);
   const [filters, setFilters] = useState<SearchFilters>({
     fields: [],
-    specializationQuery: '',
     keywords: '',
     institution: '',
     publicationYearStart: 2000,
@@ -56,11 +30,36 @@ const ResearcherSearch: React.FC = () => {
   });
   const [researchers, setResearchers] = useState<ResearcherProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [aiResponses, setAiResponses] = useState<{ [id: string]: { summary: string; collaborationIdea: string } }>({});
-  const [aiLoading, setAiLoading] = useState<{ [id: string]: boolean }>({});
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // URLクエリパラメータ "ids" が指定されている場合、そのIDのみフィルタリングする
+  // 専門分野の選択肢を取得
+  useEffect(() => {
+    const fetchFields = async () => {
+      try {
+        const fields = await getFields();
+        setFieldOptions(fields);
+      } catch (error) {
+        console.error('Error fetching fields:', error);
+      }
+    };
+    fetchFields();
+  }, []);
+
+  // 所属機関の選択肢を取得
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const institutions = await getInstitutions();
+        setInstitutionOptions(["", ...institutions]);
+      } catch (error) {
+        console.error('Error fetching institutions:', error);
+      }
+    };
+    fetchInstitutions();
+  }, []);
+
+  // URLクエリパラメータに応じて検索結果を更新
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -68,11 +67,24 @@ const ResearcherSearch: React.FC = () => {
         const data = await getResearchers();
         const searchParams = new URLSearchParams(location.search);
         const idsParam = searchParams.get('ids');
+        const keywordsParam = searchParams.get('keywords') || "";
+        const institutionParam = searchParams.get('institution') || "";
+        console.log("URL parameters:", { idsParam, keywordsParam, institutionParam });
         if (idsParam) {
-          // Supabase に登録されている実際のIDを使用
+          // IDs がある場合は、各IDを文字列として比較
           const candidateIds = idsParam.split(',').map(id => id.trim());
-          const filteredData = data.filter(r => candidateIds.includes(r.id));
+          const filteredData = data.filter(r => candidateIds.includes(String(r.id)));
+          console.log("Filtered researchers (by id):", filteredData);
           setResearchers(filteredData);
+        } else if (keywordsParam || institutionParam) {
+          // キーワードや所属機関がある場合は、検索を実行
+          const searchFilters: SearchFilters = {
+            ...filters,
+            keywords: keywordsParam,
+            institution: institutionParam
+          };
+          const results = await searchResearchers(keywordsParam, searchFilters);
+          setResearchers(results);
         } else {
           setResearchers(data);
         }
@@ -85,18 +97,26 @@ const ResearcherSearch: React.FC = () => {
     fetchData();
   }, [location.search]);
 
-  // 通常の検索処理
+  // 検索ボタン・エンターキー押下時の処理：フィルター情報をURLに反映
+  const executeSearch = () => {
+    const queryParams = new URLSearchParams();
+    if (filters.keywords.trim()) {
+      queryParams.set('keywords', filters.keywords.trim());
+    }
+    if (filters.institution.trim()) {
+      queryParams.set('institution', filters.institution.trim());
+    }
+    // ※ 他のフィルターも必要に応じて追加可能
+    navigate(`?${queryParams.toString()}`);
+  };
+
   const handleSearch = async () => {
-    setLoading(true);
-    try {
-      const results = await searchResearchers(filters.keywords, filters);
-      console.log('Search results:', results);
-      setResearchers(results);
-    } catch (error) {
-      console.error('Error searching researchers:', error);
-      alert('研究者の検索中にエラーが発生しました');
-    } finally {
-      setLoading(false);
+    executeSearch();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      executeSearch();
     }
   };
 
@@ -111,70 +131,8 @@ const ResearcherSearch: React.FC = () => {
 
   const getFieldLabel = (field: string) => field;
 
-  // 論文・データ検索用のURL生成
   const generateSearchUrl = (researcher: ResearcherProfile) => {
     return `https://cir.nii.ac.jp/all?q=${encodeURIComponent(researcher.name)}&affiliation=${encodeURIComponent(researcher.institution)}`;
-  };
-
-  // AIで調べるボタンの処理（OpenAI API を呼び出す）
-  const handleAiInvestigate = async (researcher: ResearcherProfile) => {
-    setAiLoading(prev => ({ ...prev, [researcher.id]: true }));
-    const prompt = `
-以下は研究者の登録情報です：
-氏名: ${researcher.name}
-職位: ${researcher.title}
-所属: ${researcher.institution} ${researcher.department}
-専門分野: ${researcher.field}
-研究分野: ${researcher.specialization}
-研究概要: ${researcher.research_summary}
-キーワード: ${researcher.keywords}
-
-この情報をもとに、一般向けに分かりやすく研究内容を要約し、協業可能な業種やアイディアを提案してください。
-回答は以下の JSON 形式で返してください:
-{
-  "summary": "ここに要約文",
-  "collaborationIdea": "ここに協業アイディア"
-}
-    `;
-    try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "chatgpt-4o-latest",
-          messages: [
-            { role: "system", content: "あなたは有能な研究情報アシスタントです。" },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.7
-        })
-      });
-      const data = await response.json();
-      console.log("OpenAI response:", data);
-      const content = data.choices?.[0]?.message?.content || "回答が得られませんでした。";
-      // JSON部分を抽出する（複数行に対応）
-      const jsonMatch = content.match(/(\{[\s\S]*\})/);
-      let aiResponse;
-      if (jsonMatch && jsonMatch[1]) {
-        try {
-          aiResponse = JSON.parse(jsonMatch[1]);
-        } catch (e) {
-          console.error("JSON parse error:", e);
-          aiResponse = { summary: content, collaborationIdea: "" };
-        }
-      } else {
-        aiResponse = { summary: content, collaborationIdea: "" };
-      }
-      setAiResponses(prev => ({ ...prev, [researcher.id]: aiResponse }));
-    } catch (error) {
-      console.error("Error calling OpenAI API:", error);
-      setAiResponses(prev => ({ ...prev, [researcher.id]: { summary: "エラーが発生しました。", collaborationIdea: "" } }));
-    } finally {
-      setAiLoading(prev => ({ ...prev, [researcher.id]: false }));
-    }
   };
 
   return (
@@ -182,106 +140,67 @@ const ResearcherSearch: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">研究者検索</h1>
         <p className="mt-2 text-gray-600">
-          キーワード、研究分野、専門分野、所属機関などで検索できます。
+          研究者名、研究分野、所属機関、キーワード、または研究者IDで検索できます。
         </p>
       </div>
 
       {/* 検索フィルター部分 */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex flex-col md:flex-row md:items-end md:space-x-4">
-          {/* キーワード検索 */}
-          <div className="flex-1">
-            <label htmlFor="keywords" className="block text-sm font-medium text-gray-700">
-              キーワード検索
-            </label>
-            <input
-              type="text"
-              id="keywords"
-              value={filters.keywords}
-              onChange={(e) => setFilters({ ...filters, keywords: e.target.value })}
-              placeholder="キーワードを入力"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          {/* 研究分野検索 */}
-          <div className="flex-1">
-            <label htmlFor="specializationQuery" className="block text-sm font-medium text-gray-700">
-              研究分野検索
-            </label>
-            <input
-              type="text"
-              id="specializationQuery"
-              value={filters.specializationQuery}
-              onChange={(e) => setFilters({ ...filters, specializationQuery: e.target.value })}
-              placeholder="研究分野を入力"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
+        <div className="mb-4">
+          <label htmlFor="institution" className="block text-sm font-medium text-gray-700">
+            所属機関
+          </label>
+          <select
+            id="institution"
+            value={filters.institution}
+            onChange={(e) => setFilters({ ...filters, institution: e.target.value })}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          >
+            {institutionOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === "" ? "すべて" : option}
+              </option>
+            ))}
+          </select>
         </div>
-        {/* 専門分野フィルター */}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mb-4">
+          <label htmlFor="keywords" className="block text-sm font-medium text-gray-700">
+            検索キーワード / ID
+          </label>
+          <input
+            type="text"
+            id="keywords"
+            value={filters.keywords}
+            onChange={(e) => setFilters({ ...filters, keywords: e.target.value })}
+            onKeyDown={handleKeyDown}
+            placeholder="研究者名、研究分野、所属機関、キーワード、またはID"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="mb-4 flex items-center justify-between">
           <span className="block text-sm font-medium text-gray-700">専門分野</span>
           <button
-            onClick={() => setFilters(prev => ({ ...prev, fields: [] }))}
+            onClick={() => setShowFields(prev => !prev)}
             className="px-3 py-1 bg-gray-200 rounded text-sm"
           >
-            クリア
+            {showFields ? "非表示" : "表示"}
           </button>
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {allFields.map((field) => (
-            <label key={field} className="inline-flex items-center">
-              <input
-                type="checkbox"
-                className="form-checkbox text-indigo-600"
-                checked={filters.fields.includes(field)}
-                onChange={() => toggleField(field)}
-              />
-              <span className="ml-2 text-sm">{field}</span>
-            </label>
-          ))}
-        </div>
-        {/* その他フィルター */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="institution" className="block text-sm font-medium text-gray-700">
-              所属機関
-            </label>
-            <input
-              type="text"
-              id="institution"
-              value={filters.institution}
-              onChange={(e) => setFilters({ ...filters, institution: e.target.value })}
-              placeholder="大学・研究機関名"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
+        {showFields && (
+          <div className="grid grid-cols-2 gap-2">
+            {fieldOptions.map((field) => (
+              <label key={field} className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  className="form-checkbox text-indigo-600"
+                  checked={filters.fields.includes(field)}
+                  onChange={() => toggleField(field)}
+                />
+                <span className="ml-2 text-sm">{field}</span>
+              </label>
+            ))}
           </div>
-          <div>
-            <label htmlFor="h-index" className="block text-sm font-medium text-gray-700">
-              最小h-index
-            </label>
-            <input
-              type="number"
-              id="h-index"
-              value={filters.minHIndex}
-              onChange={(e) => setFilters({ ...filters, minHIndex: parseInt(e.target.value) || 0 })}
-              min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="has-patents"
-              checked={filters.hasPatents}
-              onChange={(e) => setFilters({ ...filters, hasPatents: e.target.checked })}
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-            />
-            <label htmlFor="has-patents" className="ml-2 text-sm text-gray-700">
-              特許を保有する研究者のみ
-            </label>
-          </div>
-        </div>
+        )}
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleSearch}
@@ -293,14 +212,14 @@ const ResearcherSearch: React.FC = () => {
         </div>
       </div>
 
-      {/* 検索結果件数 */}
+      {/* 検索結果件数の表示 */}
       {!loading && (
         <div className="mb-4 text-sm text-gray-700">
           検索結果: {researchers.length} 件
         </div>
       )}
 
-      {/* 検索結果表示 */}
+      {/* 検索結果の表示 */}
       <div className="space-y-6">
         {researchers.map((researcher) => (
           <div
@@ -312,7 +231,6 @@ const ResearcherSearch: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center mb-2 space-x-2">
                     <h2 className="text-xl font-bold text-gray-900">{researcher.name}</h2>
-                    {/* 「論文・データを探す」ボタン */}
                     <a
                       href={generateSearchUrl(researcher)}
                       target="_blank"
@@ -349,32 +267,7 @@ const ResearcherSearch: React.FC = () => {
                       <p className="text-gray-900">{researcher.keywords}</p>
                     </div>
                   )}
-                  <div className="mt-4">
-                    <button
-                      onClick={() => handleAiInvestigate(researcher)}
-                      className="px-3 py-1 bg-yellow-400 text-white rounded-md shadow hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                      disabled={aiLoading[researcher.id]}
-                    >
-                      {aiLoading[researcher.id] ? "処理中..." : "AIで調べる"}
-                    </button>
-                    {aiResponses[researcher.id] && (
-                      <div className="mt-2 p-3 border border-gray-200 rounded">
-                        <h4 className="text-sm font-bold text-gray-800">要約</h4>
-                        <p className="text-sm text-gray-800">{aiResponses[researcher.id].summary}</p>
-                        <h4 className="mt-2 text-sm font-bold text-gray-800">協業アイディア</h4>
-                        <p className="text-sm text-gray-800">{aiResponses[researcher.id].collaborationIdea}</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-4">
-                <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                  詳細プロフィール
-                </button>
-                <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                  コンタクトする
-                </button>
               </div>
             </div>
           </div>
@@ -403,62 +296,5 @@ const ResearcherSearch: React.FC = () => {
     </div>
   );
 };
-
-async function handleAiInvestigate(researcher: ResearcherProfile) {
-  const prompt = `
-以下は研究者の登録情報です：
-氏名: ${researcher.name}
-職位: ${researcher.title}
-所属: ${researcher.institution} ${researcher.department}
-専門分野: ${researcher.field}
-研究分野: ${researcher.specialization}
-研究概要: ${researcher.research_summary}
-キーワード: ${researcher.keywords}
-
-この情報をもとに、一般向けに分かりやすく研究内容を要約し、協業可能な業種やアイディアを提案してください。
-回答は以下の JSON 形式で返してください:
-{
-  "summary": "ここに要約文",
-  "collaborationIdea": "ここに協業アイディア"
-}
-  `;
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "chatgpt-4o-latest",
-        messages: [
-          { role: "system", content: "あなたは有能な研究情報アシスタントです。" },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7
-      })
-    });
-    const data = await response.json();
-    console.log("OpenAI response:", data);
-    const content = data.choices?.[0]?.message?.content || "回答が得られませんでした。";
-    // 不要なマークダウン記号を除去して、JSON部分だけを抽出
-    const jsonMatch = content.match(/(\{[\s\S]*\})/);
-    let aiResponse;
-    if (jsonMatch && jsonMatch[1]) {
-      try {
-        aiResponse = JSON.parse(jsonMatch[1]);
-      } catch (e) {
-        console.error("JSON parse error:", e);
-        aiResponse = { summary: content, collaborationIdea: "" };
-      }
-    } else {
-      aiResponse = { summary: content, collaborationIdea: "" };
-    }
-    window.alert("AIからの返答: " + JSON.stringify(aiResponse, null, 2));
-  } catch (error) {
-    console.error("Error calling OpenAI API:", error);
-    window.alert("エラーが発生しました。");
-  }
-}
 
 export default ResearcherSearch;

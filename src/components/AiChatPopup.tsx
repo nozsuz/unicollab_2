@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, KeyboardEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ResearcherProfile } from '../types';
 import { getResearchers, searchResearchers } from '../utils/researcherStorage';
@@ -15,48 +15,23 @@ interface AiSearchResult {
   researchOverview: string;
 }
 
-const allFields = [
-  "スポーツ健康科学",
-  "医科学",
-  "医学",
-  "学校教育学",
-  "学術",
-  "環境科学",
-  "教育学",
-  "教育情報学",
-  "経営学",
-  "経営経済学",
-  "経済学",
-  "芸術学",
-  "工学",
-  "国際関係論",
-  "国際文化",
-  "商学",
-  "情報科学",
-  "人間科学",
-  "体育学",
-  "農学",
-  "文学",
-  "法学",
-  "薬学",
-  "理学"
-];
-
 const AiChatPopup: React.FC = () => {
-  // ポップアップの開閉状態
   const [isOpen, setIsOpen] = useState<boolean>(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [researchers, setResearchers] = useState<ResearcherProfile[]>([]);
-  // OpenAI の回答結果から得た候補（Supabase の id を含む）
   const [candidateResults, setCandidateResults] = useState<AiSearchResult[]>([]);
-  // 分野選択（この値で Supabase 側もフィルタリングする）
-  const [selectedField, setSelectedField] = useState<string>('');
-  // API 呼び出し済みかどうか（候補ボタン表示の判断に利用）
   const [isApiCalled, setIsApiCalled] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 初回チャットメッセージ
+  useEffect(() => {
+    if (chatMessages.length === 0) {
+      setChatMessages([{ role: 'assistant', content: 'どんなことが知りたいですか？' }]);
+    }
+  }, [chatMessages]);
 
   // 初回ロード：Supabase から全研究者データを取得
   useEffect(() => {
@@ -82,7 +57,7 @@ const AiChatPopup: React.FC = () => {
         const idsParam = searchParams.get('ids');
         if (idsParam) {
           const candidateIds = idsParam.split(',').map(id => id.trim());
-          const filteredData = data.filter(r => candidateIds.includes(r.id));
+          const filteredData = data.filter(r => candidateIds.includes(String(r.id)));
           setResearchers(filteredData);
         } else {
           setResearchers(data);
@@ -96,6 +71,13 @@ const AiChatPopup: React.FC = () => {
     fetchData();
   }, [location.search]);
 
+  // エンターキー対応
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSend();
+    }
+  };
+
   // ユーザー入力送信時の処理
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -103,12 +85,7 @@ const AiChatPopup: React.FC = () => {
     setChatMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
-    // 分野選択がある場合、Supabase のデータからフィルタリングする
-    const filteredResearchers = selectedField 
-      ? researchers.filter(r => r.field === selectedField)
-      : researchers;
-
-    // 候補情報のテキスト整形（各候補の Supabase の id と keywords も含む）
+    const filteredResearchers = researchers;
     let candidateInfo = '';
     if (filteredResearchers.length > 0) {
       candidateInfo = filteredResearchers
@@ -119,13 +96,11 @@ const AiChatPopup: React.FC = () => {
     }
     console.log("候補情報:", candidateInfo);
 
-    // プロンプト作成（分野選択がある場合は参考情報として表示）
     const prompt = `
-以下は、${selectedField ? `選択された分野「${selectedField}」に所属する` : '全'}研究者の候補情報です：
+以下は、全研究者の候補情報です：
 ${candidateInfo}
 
 ユーザーのクエリ：「${input}」
-${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
 ※各候補にはSupabaseのkeywords情報も含まれています。ユーザーのクエリに曖昧な単語や誤字が含まれている場合でも、これらの情報を参考にして、適切な候補のマッチ度（0～100の評価）とともに、研究者名、所属、研究概要のみを JSON 配列形式で出力してください。
 例:
 [
@@ -146,29 +121,46 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
             { role: "system", content: "あなたは有能な研究情報アシスタントです。" },
             { role: "user", content: prompt }
           ],
-          temperature: 0.3
+          temperature: 0.7
         })
       });
       const data = await response.json();
       console.log("OpenAI search response:", data);
       const rawText = data.choices?.[0]?.message?.content || "回答が得られませんでした。";
+      console.log("Raw text:", rawText);
 
       // JSON 配列部分を抽出してパースする関数
       const parseAiResponse = (text: string): AiSearchResult[] => {
+        const cleanedText = text
+          .replace(/^```(json)?\s*/i, '')
+          .replace(/```$/, '')
+          .trim();
         try {
+          const parsed = JSON.parse(cleanedText);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+          throw new Error("Parsed result is not an array");
+        } catch (err) {
+          console.error("Failed to parse cleaned JSON:", err);
           const match = text.match(/(\[[\s\S]*\])/);
           if (match && match[1]) {
-            return JSON.parse(match[1]);
+            try {
+              return JSON.parse(match[1]);
+            } catch (e) {
+              console.error("Failed to parse extracted JSON:", e);
+              setChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: "AIのレスポンスのパースに失敗しました。レスポンス内容：" + rawText }
+              ]);
+              return [];
+            }
           }
-          throw new Error("有効な JSON 配列が見つかりませんでした。");
-        } catch (e) {
-          console.error("Failed to parse AI search response:", e);
           return [];
         }
       };
 
       let aiResults = parseAiResponse(rawText);
-      // マッチ度が高い順に並べ替え
       aiResults.sort((a, b) => b.matchScore - a.matchScore);
       setCandidateResults(aiResults);
       setIsApiCalled(true);
@@ -192,27 +184,23 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
     }
   };
 
-  // 「該当する研究者を見る」ボタン押下時の処理（または「絞り込む」ボタン）
+  // 「該当する研究者を見る」ボタン押下時の処理
   const handleViewCandidates = () => {
-    // candidateResults から Supabase の実際の ID を抽出
-    const candidateIds = candidateResults.map(r => r.id).join(',');
-    // 遷移後、候補ボタンは非表示にするため API 呼び出し済みフラグをリセット
+    const candidateIds = candidateResults.map(r => r.id.trim()).filter(id => id).join(',');
+    console.log("Candidate IDs:", candidateIds);
     setCandidateResults([]);
     setIsApiCalled(false);
     navigate(`/researcher-search?ids=${encodeURIComponent(candidateIds)}`);
   };
 
-  // チャット履歴クリア時：トップページに戻り、ボタン表示を初期状態「研究者を見る」に戻す
+  // チャット履歴クリア時の処理
   const handleResetChat = () => {
     setChatMessages([]);
     setCandidateResults([]);
     setInput('');
-    setSelectedField('');
-    setIsApiCalled(false);
     navigate('/');
   };
 
-  // ボタン表示：現在のルートが "/researcher-search" なら「絞り込む」、そうでなければ「研究者を見る」
   const candidateButtonText = location.pathname === '/researcher-search' ? "絞り込む" : "研究者を見る";
   const candidateButtonClass = location.pathname === '/researcher-search'
     ? "w-full bg-blue-300 text-white py-2 rounded hover:bg-blue-400"
@@ -228,25 +216,6 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
               ✕
             </button>
           </div>
-          {/* 分野選択ドロップダウン（参考情報およびフィルタリングに利用） */}
-          <div className="mb-2">
-            <label htmlFor="field-select" className="text-sm font-medium text-gray-700">
-              分野選択
-            </label>
-            <select
-              id="field-select"
-              value={selectedField}
-              onChange={(e) => setSelectedField(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-            >
-              <option value="">すべて</option>
-              {allFields.map((field) => (
-                <option key={field} value={field}>
-                  {field}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="h-64 overflow-y-auto mb-2 p-2 border border-gray-200 rounded">
             {chatMessages.map((msg, index) => (
               <div key={index} className={`mb-2 ${msg.role === 'assistant' ? 'text-blue-600' : 'text-gray-800'}`}>
@@ -261,6 +230,7 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="flex-1 border rounded-l px-2 py-1"
               placeholder="検索クエリを入力"
             />
@@ -272,22 +242,15 @@ ${selectedField ? `【参考】選択された分野: ${selectedField}\n` : ''}
               送信
             </button>
           </div>
-          {/* API にテキストを送って候補が返ってきた場合のみボタン表示 */}
           {isApiCalled && candidateResults.length > 0 && (
             <div className="flex space-x-2">
-              <button
-                onClick={handleViewCandidates}
-                className={candidateButtonClass}
-              >
+              <button onClick={handleViewCandidates} className={candidateButtonClass}>
                 {candidateButtonText}
               </button>
             </div>
           )}
           <div className="flex space-x-2 mt-2">
-            <button
-              onClick={handleResetChat}
-              className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
-            >
+            <button onClick={handleResetChat} className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">
               チャットクリア
             </button>
           </div>
