@@ -4,8 +4,8 @@ export interface ResearcherProfile {
   title: string;
   institution: string;
   department: string;
-  field: string;           // 専門分野としてのフィールド
-  specialization: string;  // 研究分野としての specialization
+  field: string;           // 専門分野としてのフィールド（チェックボックスでフィルタリング対象）
+  specialization: string;  // 研究分野としての specialization（表示用など）
   keywords: string;        // キーワード
   research_summary: string;
   citation_metrics: {
@@ -35,9 +35,8 @@ export interface ResearcherProfile {
 }
 
 export interface SearchFilters {
-  fields: string[];            // 専門分野（researcher.field）のチェックボックス選択
-  specializationQuery: string; // 研究分野（researcher.specialization）の検索用文字列
-  keywords: string;            // キーワード検索（researcher.keywords）対象
+  fields: string[];   // 専門分野（researcher.field）のチェックボックス選択
+  keywords: string;   // キーワード検索（researcher.keywords）対象
   institution: string;
   publicationYearStart: number;
   publicationYearEnd: number;
