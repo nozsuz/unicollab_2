@@ -2,8 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { ResearcherProfile, SearchFilters } from '../types';
 
 const supabaseUrl = 'https://nfvwqjkweewfdtowduqr.supabase.co';
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdndxamt3ZWV3ZmR0b3dkdXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc4OTcyNzAsImV4cCI6MjA1MzQ3MzI3MH0.7FX4jSTUY4jJGEY6e8T-20ONBLInARvG-oYyCqxBL1g';
+const supabaseKey = 'YOUR_SUPABASE_KEY';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
@@ -19,9 +18,9 @@ export async function getResearchers(): Promise<ResearcherProfile[]> {
 }
 
 /**
- * 取得した研究者データに対して、キーワードや各種フィルターを適用して検索する関数  
- * 研究者名、キーワード、または研究者IDに対して、空白で分割した各トークンが含まれているかチェックします。
- * さらに、specializationQuery により、researcher.specialization をフィルタリングします。
+ * キーワードや各種フィルターを適用して研究者を検索する関数  
+ * - 研究者名、キーワード、またはIDに対して、空白区切りの各トークンが含まれているかチェック  
+ * - 専門分野はチェックボックスで選択された fields でフィルタリング
  */
 export async function searchResearchers(
   query: string,
@@ -30,24 +29,24 @@ export async function searchResearchers(
   const researchers = await getResearchers();
   const queryLower = query.toLowerCase();
   const tokens = queryLower.split(/\s+/).filter(token => token);
-  const specializationQueryLower = filters.specializationQuery.toLowerCase();
 
   return researchers.filter((researcher: ResearcherProfile) => {
     const nameLower = (researcher.name || '').toLowerCase();
     const keywordsLower = (researcher.keywords || '').toLowerCase();
     const idLower = String(researcher.id).toLowerCase();
     const specializationLower = (researcher.specialization || '').toLowerCase();
-    // 各トークンが「名前」「キーワード」「ID」に含まれているかチェック
+
+    // 各トークンが名前、キーワード、またはIDに含まれているかチェック
     const matchesQuery =
       tokens.length === 0 ||
-      tokens.every(token => nameLower.includes(token) || keywordsLower.includes(token) || idLower.includes(token));
-    // specializationQuery が設定されている場合は、researcher.specialization にも含まれている必要がある
-    const matchesSpecialization =
-      !filters.specializationQuery ||
-      specializationLower.includes(specializationQueryLower);
+      tokens.every(token =>
+        nameLower.includes(token) ||
+        keywordsLower.includes(token) ||
+        idLower.includes(token)
+      );
 
+    // 専門分野はチェックボックスで選択された値でフィルタリング
     const matchesField =
-      !filters.fields ||
       filters.fields.length === 0 ||
       filters.fields.includes(researcher.field);
 
@@ -63,7 +62,6 @@ export async function searchResearchers(
 
     return (
       matchesQuery &&
-      matchesSpecialization &&
       matchesField &&
       matchesInstitution &&
       matchesHIndex &&
