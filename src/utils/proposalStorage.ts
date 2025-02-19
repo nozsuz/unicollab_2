@@ -52,13 +52,17 @@ export async function searchResearchers(
 
     const matchesInstitution =
       !filters.institution ||
-      (researcher.institution || '').toLowerCase().includes(filters.institution.toLowerCase());
+      (researcher.institution || '')
+        .toLowerCase()
+        .includes(filters.institution.toLowerCase());
 
     const matchesHIndex =
-      !filters.minHIndex || (researcher.citation_metrics?.h_index ?? 0) >= filters.minHIndex;
+      !filters.minHIndex ||
+      (researcher.citation_metrics?.h_index ?? 0) >= filters.minHIndex;
 
     const matchesPatents =
-      !filters.hasPatents || (researcher.patents && researcher.patents.count > 0);
+      !filters.hasPatents ||
+      (researcher.patents && researcher.patents.count > 0);
 
     return (
       matchesQuery &&
