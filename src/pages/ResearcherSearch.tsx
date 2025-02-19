@@ -3,12 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ResearcherProfile } from '../types';
 import { getResearchers, searchResearchers, getFields, getInstitutions } from '../utils/researcherStorage';
 
-// specializationQuery プロパティを含む
+// specializationQuery プロパティを削除
 interface SearchFilters {
   fields: string[];
   keywords: string;
   institution: string;
-  specializationQuery: string;
   publicationYearStart: number;
   publicationYearEnd: number;
   minCitations: number;
@@ -24,7 +23,6 @@ const ResearcherSearch: React.FC = () => {
     fields: [],
     keywords: '',
     institution: '',
-    specializationQuery: '', // 研究分野検索用
     publicationYearStart: 2000,
     publicationYearEnd: new Date().getFullYear(),
     minCitations: 0,
@@ -72,19 +70,19 @@ const ResearcherSearch: React.FC = () => {
         const idsParam = searchParams.get('ids');
         const keywordsParam = searchParams.get('keywords') || "";
         const institutionParam = searchParams.get('institution') || "";
-        const specializationQueryParam = searchParams.get('specializationQuery') || "";
-        console.log("URL parameters:", { idsParam, keywordsParam, institutionParam, specializationQueryParam });
+        const fieldsParam = searchParams.get('fields') || "";
+        console.log("URL parameters:", { idsParam, keywordsParam, institutionParam, fieldsParam });
         if (idsParam) {
           // IDs がある場合は、そのIDのみでフィルタリング
           const candidateIds = idsParam.split(',').map(id => id.trim());
           const filteredData = data.filter(r => candidateIds.includes(String(r.id)));
           setResearchers(filteredData);
-        } else if (keywordsParam || institutionParam || specializationQueryParam) {
+        } else if (keywordsParam || institutionParam || fieldsParam) {
           const searchFilters: SearchFilters = {
             ...filters,
             keywords: keywordsParam,
             institution: institutionParam,
-            specializationQuery: specializationQueryParam,
+            fields: fieldsParam ? fieldsParam.split(',') : filters.fields,
           };
           const results = await searchResearchers(keywordsParam, searchFilters);
           setResearchers(results);
@@ -109,10 +107,9 @@ const ResearcherSearch: React.FC = () => {
     if (filters.institution.trim()) {
       queryParams.set('institution', filters.institution.trim());
     }
-    if (filters.specializationQuery.trim()) {
-      queryParams.set('specializationQuery', filters.specializationQuery.trim());
+    if (filters.fields.length > 0) {
+      queryParams.set('fields', filters.fields.join(','));
     }
-    // ※ 他のフィルターも必要に応じて追加可能
     navigate(`?${queryParams.toString()}`);
   };
 
@@ -182,20 +179,6 @@ const ResearcherSearch: React.FC = () => {
             onChange={(e) => setFilters({ ...filters, keywords: e.target.value })}
             onKeyDown={handleKeyDown}
             placeholder="研究者名、研究分野、所属機関、キーワード、またはID"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-        </div>
-        {/* 研究分野検索用（specializationQuery）入力 */}
-        <div className="mb-4">
-          <label htmlFor="specializationQuery" className="block text-sm font-medium text-gray-700">
-            研究分野検索
-          </label>
-          <input
-            type="text"
-            id="specializationQuery"
-            value={filters.specializationQuery}
-            onChange={(e) => setFilters({ ...filters, specializationQuery: e.target.value })}
-            placeholder="研究分野で検索"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
