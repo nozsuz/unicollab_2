@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  * Supabase の demo_1 テーブルから研究者データを全件取得する関数
  */
 export async function getResearchers(): Promise<ResearcherProfile[]> {
-  const { data, error } = await supabase.from('demo_1').select('*');
+  const { data, error } = await supabase.from('shinomaki_1').select('*');
   if (error) {
     console.error('Error fetching researchers:', error);
     return [];
@@ -67,7 +67,7 @@ export async function searchResearchers(
  * 研究者データからユニークな専門分野（field）の一覧を取得する関数
  */
 export async function getFields(): Promise<string[]> {
-  const { data, error } = await supabase.from('demo_1').select('field');
+  const { data, error } = await supabase.from('ishinomaki_1').select('field');
   if (error) {
     console.error('Error fetching fields:', error);
     return [];
@@ -81,7 +81,7 @@ export async function getFields(): Promise<string[]> {
  * Supabase の demo_1 テーブルから所属機関のユニークな値を取得する関数
  */
 export async function getInstitutions(): Promise<string[]> {
-  const { data, error } = await supabase.from('demo_1').select('institution');
+  const { data, error } = await supabase.from('ishinomaki_1').select('institution');
   if (error) {
     console.error('Error fetching institutions:', error);
     return [];
