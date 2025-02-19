@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ResearcherProfile } from '../types';
 import { getResearchers, searchResearchers, getFields, getInstitutions } from '../utils/researcherStorage';
 
-// specializationQuery プロパティを追加
+// specializationQuery プロパティを含む
 interface SearchFilters {
   fields: string[];
   keywords: string;
@@ -24,7 +24,7 @@ const ResearcherSearch: React.FC = () => {
     fields: [],
     keywords: '',
     institution: '',
-    specializationQuery: '', // 初期値を空文字に
+    specializationQuery: '', // 研究分野検索用
     publicationYearStart: 2000,
     publicationYearEnd: new Date().getFullYear(),
     minCitations: 0,
@@ -62,7 +62,7 @@ const ResearcherSearch: React.FC = () => {
     fetchInstitutions();
   }, []);
 
-  // URL クエリパラメータに応じて検索結果を更新
+  // URLクエリパラメータに応じて検索結果を更新
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -72,18 +72,19 @@ const ResearcherSearch: React.FC = () => {
         const idsParam = searchParams.get('ids');
         const keywordsParam = searchParams.get('keywords') || "";
         const institutionParam = searchParams.get('institution') || "";
-        console.log("URL parameters:", { idsParam, keywordsParam, institutionParam });
+        const specializationQueryParam = searchParams.get('specializationQuery') || "";
+        console.log("URL parameters:", { idsParam, keywordsParam, institutionParam, specializationQueryParam });
         if (idsParam) {
-          // IDs がある場合は、各IDを文字列として比較
+          // IDs がある場合は、そのIDのみでフィルタリング
           const candidateIds = idsParam.split(',').map(id => id.trim());
           const filteredData = data.filter(r => candidateIds.includes(String(r.id)));
-          console.log("Filtered researchers (by id):", filteredData);
           setResearchers(filteredData);
-        } else if (keywordsParam || institutionParam) {
+        } else if (keywordsParam || institutionParam || specializationQueryParam) {
           const searchFilters: SearchFilters = {
             ...filters,
             keywords: keywordsParam,
             institution: institutionParam,
+            specializationQuery: specializationQueryParam,
           };
           const results = await searchResearchers(keywordsParam, searchFilters);
           setResearchers(results);
@@ -107,6 +108,9 @@ const ResearcherSearch: React.FC = () => {
     }
     if (filters.institution.trim()) {
       queryParams.set('institution', filters.institution.trim());
+    }
+    if (filters.specializationQuery.trim()) {
+      queryParams.set('specializationQuery', filters.specializationQuery.trim());
     }
     // ※ 他のフィルターも必要に応じて追加可能
     navigate(`?${queryParams.toString()}`);
@@ -148,6 +152,7 @@ const ResearcherSearch: React.FC = () => {
 
       {/* 検索フィルター部分 */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
+        {/* 所属機関の選択 */}
         <div className="mb-4">
           <label htmlFor="institution" className="block text-sm font-medium text-gray-700">
             所属機関
@@ -165,6 +170,7 @@ const ResearcherSearch: React.FC = () => {
             ))}
           </select>
         </div>
+        {/* 統一のキーワード検索 */}
         <div className="mb-4">
           <label htmlFor="keywords" className="block text-sm font-medium text-gray-700">
             検索キーワード / ID
@@ -179,6 +185,21 @@ const ResearcherSearch: React.FC = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
+        {/* 研究分野検索用（specializationQuery）入力 */}
+        <div className="mb-4">
+          <label htmlFor="specializationQuery" className="block text-sm font-medium text-gray-700">
+            研究分野検索
+          </label>
+          <input
+            type="text"
+            id="specializationQuery"
+            value={filters.specializationQuery}
+            onChange={(e) => setFilters({ ...filters, specializationQuery: e.target.value })}
+            placeholder="研究分野で検索"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          />
+        </div>
+        {/* 専門分野（field）の表示／非表示 */}
         <div className="mb-4 flex items-center justify-between">
           <span className="block text-sm font-medium text-gray-700">専門分野</span>
           <button
