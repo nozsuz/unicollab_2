@@ -20,7 +20,8 @@ export async function getResearchers(): Promise<ResearcherProfile[]> {
 
 /**
  * 取得した研究者データに対して、キーワードや各種フィルターを適用して検索する関数  
- * 研究者名、キーワード、または研究者IDに対して、空白で分割した各トークンが含まれているかをチェックします。
+ * 研究者名、キーワード、または研究者IDに対して、空白で分割した各トークンが含まれているかチェックします。
+ * さらに、specializationQuery により、researcher.specialization をフィルタリングします。
  */
 export async function searchResearchers(
   query: string,
@@ -29,14 +30,21 @@ export async function searchResearchers(
   const researchers = await getResearchers();
   const queryLower = query.toLowerCase();
   const tokens = queryLower.split(/\s+/).filter(token => token);
+  const specializationQueryLower = filters.specializationQuery.toLowerCase();
 
   return researchers.filter((researcher: ResearcherProfile) => {
     const nameLower = (researcher.name || '').toLowerCase();
     const keywordsLower = (researcher.keywords || '').toLowerCase();
     const idLower = String(researcher.id).toLowerCase();
+    const specializationLower = (researcher.specialization || '').toLowerCase();
+    // 各トークンが「名前」「キーワード」「ID」に含まれているかチェック
     const matchesQuery =
       tokens.length === 0 ||
       tokens.every(token => nameLower.includes(token) || keywordsLower.includes(token) || idLower.includes(token));
+    // specializationQuery が設定されている場合は、researcher.specialization にも含まれている必要がある
+    const matchesSpecialization =
+      !filters.specializationQuery ||
+      specializationLower.includes(specializationQueryLower);
 
     const matchesField =
       !filters.fields ||
@@ -55,6 +63,7 @@ export async function searchResearchers(
 
     return (
       matchesQuery &&
+      matchesSpecialization &&
       matchesField &&
       matchesInstitution &&
       matchesHIndex &&
