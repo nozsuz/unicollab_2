@@ -4,8 +4,8 @@ export interface ResearcherProfile {
   title: string;
   institution: string;
   department: string;
-  field: string;           // 専門分野としてのフィールド（チェックボックスでフィルタリング対象）
-  specialization: string;  // 研究分野としての specialization（表示用など）
+  field: string;           // 専門分野（チェックボックスでフィルタリング対象）
+  specialization: string;  // 研究分野（表示用など）
   keywords: string;        // キーワード
   research_summary: string;
   citation_metrics: {
